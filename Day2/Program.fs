@@ -1041,10 +1041,9 @@ let isEachSafe =
     levels
     |> List.map isLevelSafe
 
-let isTrue value = value = true
 let numSafe =
     isEachSafe
-    |> List.filter isTrue
+    |> List.filter id
     |> List.length
 
 printfn $"Number of safe reports: {numSafe}"
@@ -1070,7 +1069,7 @@ let isEachSafeWithPermutations =
 
 let numSafeWithPermutations =
     isEachSafeWithPermutations
-    |> List.filter isTrue
+    |> List.filter id
     |> List.length
 
 //List.zip levels isEachSafeWithPermutations

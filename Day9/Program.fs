@@ -59,6 +59,101 @@ let c =
 printfn $"%A{map}"
 printfn $"%A{defragged}"
 printfn $"%A{c}"
+printfn ""
+
+// Part 2
+
+type Chunk = 
+    | File of 
+        Id: int * 
+        Start: int * 
+        Length: int
+    | FreeSpace of 
+        Start: int * 
+        Length: int
+
+let findFile (id: int) (map: int array) : Chunk option =
+    match map |> Array.tryFindIndex((=)id) with
+    | Some(startIdx) -> 
+        let endIdx = map |> Array.findIndexBack((=)id)
+        Some(File(Id = map[endIdx], Start = startIdx, Length = endIdx - startIdx + 1))
+    | None -> None
+
+let firstFreeSpace (size: int) (map: int array) : Chunk option =
+    let rec loop size map offset = 
+        let freeSpace start len = Some(FreeSpace(Start = (offset + start), Length = len))
+        
+        match map |> Array.tryFindIndex((=)empty) with
+        | Some(startIdx) when startIdx = map.Length - 1 ->
+            if size = 1 then freeSpace startIdx 1 else None
+        | Some(startIdx) ->
+            let window = map[startIdx..]
+            match window |> Array.tryFindIndex((<>)empty) with
+            | Some(endIdx) -> 
+                if endIdx >= size then freeSpace startIdx endIdx else loop size window[endIdx..] (offset + startIdx + endIdx)
+            | None ->
+                let len = map.Length - startIdx - 1
+                if len >= size then freeSpace startIdx len else None
+        | None -> None
+    loop size map 0
+
+let writeChunk (chunk: Chunk) (map: int array) = 
+    match chunk with
+    | File(Id = id; Start = start; Length = len) -> 
+        let source = (id |> Array.replicate len)
+        Array.blit source 0 map start len
+        //printfn $"Wrote file {id} at {start}"
+    | FreeSpace(Start = start; Length = len) -> 
+        let source = (-1 |> Array.replicate len)
+        Array.blit source 0 map start len
+        //printfn $"Wrote empty space at {start}"
+    
+let swapChunks (file: Chunk) (freeSpace: Chunk) (map: int array) =
+    let (newFile, newFreeSpace) = 
+        match (file, freeSpace) with
+        | (File(id, fStart, fLen), FreeSpace(sStart, sLen)) when sLen >= fLen -> 
+            (File(Id = id, Start = sStart, Length = fLen), FreeSpace(Start = fStart, Length = fLen))
+        | _ -> failwith("Invalid arguments")
+
+    map |> writeChunk newFile
+    map |> writeChunk newFreeSpace
+
+let defrag2 (map: int array) = 
+    let mutable currentId = map |> Array.max
+
+    while currentId >= 0 do
+        let (fileId, fileStart, fileLen, fileChunk) = 
+            match map |> findFile currentId with
+            | Some(File(id, start, len) as chunk) -> (id, start, len, chunk)
+            | _ -> failwith $"Found no file with id {currentId}"
+
+        let (spaceStart, spaceChunk) = 
+            match map |> firstFreeSpace fileLen with
+            | Some(FreeSpace(start, _) as chunk) -> Some(start), Some(chunk)
+            | _ -> None, None
+
+        if spaceChunk.IsSome && spaceStart.IsSome && spaceStart.Value < fileStart then
+            //printfn $"Moving file {fileId}."
+            map |> swapChunks fileChunk spaceChunk.Value
+        else 
+            //printfn $"No space for file {fileId}"
+            
+        currentId <- fileId - 1
+
+        //printfn $"%A{map} @ {currentId}"
+        //System.Console.ReadLine() |> ignore
+
+
+printfn $"%A{map}"
+
+let mapa = map |> Array.ofList
+mapa |> defrag2
+
+printfn $"%A{mapa}"
+
+let c2 = mapa |> List.ofArray |> checksum
+
+printfn $"{c2}"
 
 
 
