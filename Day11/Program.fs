@@ -44,17 +44,25 @@ let tupleHalves number =
     let str = string number
     (int64 str[..str.Length/2-1], int64 str[str.Length/2..])
 
+let cache = System.Collections.Generic.Dictionary<int*int64, int64>() 
+
 let countEvolutions count (value: int64) =   
     printf $"Evolving {value}..."
 
     let rec loop depth value =
         if depth > 0 then
-            match value with
-            | 0L -> loop (depth - 1) 1L
-            | _ when value |> isEvenLength -> 
-                let (a, b) = value |> tupleHalves
-                (loop (depth - 1) a) + (loop (depth - 1) b)
-            | _ -> loop (depth - 1) (value * 2024L)
+            match cache.TryGetValue((depth, value)) with
+            | true, cached -> cached
+            | _ ->
+                let r = 
+                    match value with
+                    | 0L -> loop (depth - 1) 1L
+                    | _ when value |> isEvenLength -> 
+                        let (a, b) = value |> tupleHalves
+                        (loop (depth - 1) a) + (loop (depth - 1) b)
+                    | _ -> loop (depth - 1) (value * 2024L)
+                cache.Add((depth, value), r) |> ignore
+                r
         else
             1
     loop count value
@@ -63,7 +71,7 @@ let countAllEvolutions count (state: int64 list) =
     state
     |> List.map (countEvolutions count)
     |> List.sum
-    
+
 
 let finalLength2 = list |> countAllEvolutions 75
 
