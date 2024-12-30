@@ -169,10 +169,28 @@ MIIISIJEEE
 MMMISSJEEE
 """
 
-let input = myInput
+let testInput4 = """
+EEEEE
+EXXXX
+EEEEE
+EXXXX
+EEEEE
+"""
 
-type Direction = | Up | Down | Left | Right
-let directions = [Up; Down; Left; Right]
+let testInput5 = """
+AAAAAA
+AAABBA
+AAABBA
+ABBAAA
+ABBAAA
+AAAAAA
+"""
+
+let input = testInput1
+
+type Direction = | N | NE | E | SE | S | SW | W | NW
+let cardinalDirections = [N; S; W; E]
+let allDirections = [N; NE; E; SE; S; SW; W; NW]
 
 type Position = int*int
 type Map = char[,]
@@ -182,23 +200,30 @@ let toMap (str:string) =
     str.Trim().Split(System.Environment.NewLine)
     |> array2D
 
-let isInBoundsOf (map:Map) (x, y) =
+let inBoundsOf (map:Map) ((x, y): Position) =
     x >= 0 && x < map.GetLength(1) && y >= 0 && y < map.GetLength(0)
+
+let outOfBoundsOf map position =
+    not(inBoundsOf map position)
 
 let directionDelta direction =
     match direction with
-    | Up -> (0, -1)
-    | Down -> (0, 1)
-    | Left -> (-1, 0)
-    | Right -> (1, 0)
+    | N ->  ( 0, -1)
+    | NE -> ( 1, -1)
+    | E ->  ( 1,  0)
+    | SE -> ( 1,  1)
+    | S ->  ( 0,  1)
+    | SW -> (-1,  1)
+    | W ->  (-1,  0)
+    | NW -> (-1, -1)
 
 let add (x1, y1) (x2, y2) = 
     (x1 + x2, y1 + y2)
 
 let validPositionsFrom (x, y as pos:Position) (map:Map) =
-    directions
+    cardinalDirections
     |> List.map (directionDelta >> (add pos))
-    |> List.filter (isInBoundsOf map)
+    |> List.filter (inBoundsOf map)
     |> List.filter (fun (x', y') -> map[y', x'] = map[y, x])
 
 let edgeCount (map:Map) (pos:Position) =
@@ -232,9 +257,9 @@ let regionScore (map:Map) (region: Region) =
 
 let map = input |> toMap
 
-printfn $"%A{connectedPositions map (0,0)}"
-printfn $"%A{map |> findRegions}"
-printfn $"%A{map |> findRegions |> List.map (regionScore map)}"
+//printfn $"%A{connectedPositions map (0,0)}"
+//printfn $"%A{map |> findRegions}"
+//printfn $"%A{map |> findRegions |> List.map (regionScore map)}"
 
 let score =
     map
@@ -244,3 +269,65 @@ let score =
 
 printfn $"{score}"
 
+// Part 2
+
+let isDiff (map:Map) ((x, y) as pos: Position) (dir:Direction) =
+    let (x', y') as pos' = pos |> add (directionDelta dir)
+    (pos' |> outOfBoundsOf map) || map[y, x] <> map[y', x']
+
+let isSame map pos dir = not (isDiff map pos dir)
+
+let areDiff map pos dirs =
+    dirs |> List.forall (isDiff map pos)
+
+let areSame map pos dirs =
+    dirs |> List.forall (isSame map pos)
+
+let cornerCount (map:Map) (pos: Position) =
+    let areDiff = areDiff map pos
+    let areSame = areSame map pos
+    let areOnlySame dirs = areSame dirs && areDiff (allDirections |> List.except dirs)
+
+    // Single island
+    // ooo
+    // oXo
+    // ooo
+    if areDiff allDirections then 4
+    
+    // Pipe ends
+    // oxo
+    // oXo
+    // ooo
+    elif areOnlySame [N] || areOnlySame [E] || areOnlySame [S] || areOnlySame [W] then 2
+    
+    // Box corners
+    // oxx
+    // oXx
+    // ooo
+    elif areOnlySame [N; E; NE] || areOnlySame [E; S; SE] || areOnlySame [S; W; SW] || areOnlySame [W; N; NW] then 2
+    
+    // Snakey pipe ends. Incomplete test.
+    // ooo
+    // oXo
+    // oxx
+    elif areDiff [W; N; E] || areDiff [N; E; S] || areDiff [E; S; W] || areDiff [S; W; N] then 2
+
+    // Snakey pipe bends.
+    // oxo
+    // oXx
+    // oo?
+    elif (areSame [N; E] && areDiff [S; W]) || (areSame [E; S] && areDiff [W; N]) || (areSame [S; W] && areDiff [N; E]) || (areSame [W; N] && areDiff [E; S]) then 2
+    else 0
+
+
+let ccMap = 
+    (cartesian [0..map.GetLength(0) - 1] [0..map.GetLength(1) - 1])
+    |> List.map (fun (y, x) -> cornerCount map (x, y))
+
+let print2DMap (width: int) (numbers: int list) =
+    numbers
+    |> List.chunkBySize width
+    |> List.iter (printfn "%A")
+
+print2DMap 4 ccMap
+//printfn $"{cornerCount map (1,0)}"
