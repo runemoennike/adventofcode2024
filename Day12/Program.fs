@@ -261,9 +261,10 @@ let map = input |> toMap
 //printfn $"%A{map |> findRegions}"
 //printfn $"%A{map |> findRegions |> List.map (regionScore map)}"
 
+let regions = map |> findRegions
+
 let score =
-    map
-    |> findRegions
+    regions
     |> List.map (regionScore map)
     |> List.sum
 
@@ -271,63 +272,64 @@ printfn $"{score}"
 
 // Part 2
 
-let isDiff (map:Map) ((x, y) as pos: Position) (dir:Direction) =
-    let (x', y') as pos' = pos |> add (directionDelta dir)
-    (pos' |> outOfBoundsOf map) || map[y, x] <> map[y', x']
+let hasNeighbourIn (region:Region) (pos:Position) (dir:Direction) =
+    let pos' = pos |> add (directionDelta dir)
+    region |> List.exists ((=)pos')
 
-let isSame map pos dir = not (isDiff map pos dir)
+let generateCorners (region:Region): Position list =
+    region
+    |> List.collect(fun pos ->
+        let hasNeighbour = hasNeighbourIn region pos
+        let hasNeighbours dirs = dirs |> List.forall hasNeighbour
+        let noNeighbour = hasNeighbour >> not
+        let noNeighbours dirs = dirs |> List.forall noNeighbour
 
-let areDiff map pos dirs =
-    dirs |> List.forall (isDiff map pos)
+        //  o
+        // oXo
+        //  o
+        if noNeighbours [N; E; S; W] then [pos; add pos (1, 0); add pos (0, 1); add pos (1, 1)] else []
 
-let areSame map pos dirs =
-    dirs |> List.forall (isSame map pos)
+        //  _     o     x     o
+        // oXo   xX|   oXo   |Xx
+        //  x     o     -     o
+        @ if hasNeighbour S && noNeighbours [E; N; W] then [pos; add pos (1, 0)] else []
+        @ if hasNeighbour W && noNeighbours [N; E; S] then [add pos (1, 0); add pos (1, 1)] else []
+        @ if hasNeighbour N && noNeighbours [E; S; W] then [add pos (1, 1); add pos (0, 1)] else []
+        @ if hasNeighbour E && noNeighbours [S; W; N] then [add pos (0, 1); pos] else []
+        
+        // .o     o.    x     x
+        // oXx   xXo   xXo   oXx
+        //  x     x     o.   .o
+        @ if hasNeighbours [E; S] && noNeighbours [N; W] then [pos] else []
+        @ if hasNeighbours [S; W] && noNeighbours [N; E] then [add pos (1, 0)] else []
+        @ if hasNeighbours [N; W] && noNeighbours [E; S] then [add pos (1, 1)] else []
+        @ if hasNeighbours [N; E] && noNeighbours [S; W] then [add pos (0, 1)] else []
+        
+        // .x     x.           
+        // xX     Xx    Xx   xX 
+        //              x.   .x
+        @ if hasNeighbours [N; W] && noNeighbour NW then [pos] else []
+        @ if hasNeighbours [N; E] && noNeighbour NE then [add pos (1, 0)] else []
+        @ if hasNeighbours [E; S] && noNeighbour SE then [add pos (1, 1)] else []
+        @ if hasNeighbours [S; W] && noNeighbour SW then [add pos (0, 1)] else []
+    )
+    |> List.distinct
 
-let cornerCount (map:Map) (pos: Position) =
-    let areDiff = areDiff map pos
-    let areSame = areSame map pos
-    let areOnlySame dirs = areSame dirs && areDiff (allDirections |> List.except dirs)
-
-    // Single island
-    // ooo
-    // oXo
-    // ooo
-    if areDiff allDirections then 4
-    
-    // Pipe ends
-    // oxo
-    // oXo
-    // ooo
-    elif areOnlySame [N] || areOnlySame [E] || areOnlySame [S] || areOnlySame [W] then 2
-    
-    // Box corners
-    // oxx
-    // oXx
-    // ooo
-    elif areOnlySame [N; E; NE] || areOnlySame [E; S; SE] || areOnlySame [S; W; SW] || areOnlySame [W; N; NW] then 2
-    
-    // Snakey pipe ends. Incomplete test.
-    // ooo
-    // oXo
-    // oxx
-    elif areDiff [W; N; E] || areDiff [N; E; S] || areDiff [E; S; W] || areDiff [S; W; N] then 2
-
-    // Snakey pipe bends.
-    // oxo
-    // oXx
-    // oo?
-    elif (areSame [N; E] && areDiff [S; W]) || (areSame [E; S] && areDiff [W; N]) || (areSame [S; W] && areDiff [N; E]) || (areSame [W; N] && areDiff [E; S]) then 2
-    else 0
+let regionScore2 (region: Region) =
+    (region.Length) * (region |> generateCorners |> List.length)
 
 
-let ccMap = 
-    (cartesian [0..map.GetLength(0) - 1] [0..map.GetLength(1) - 1])
-    |> List.map (fun (y, x) -> cornerCount map (x, y))
+[0..regions.Length - 1]
+|> List.iter (fun i ->
+    printfn ""
+    printfn $"%A{regions[i]}"
+    printfn $"%A{generateCorners regions[i]}"
+)
 
-let print2DMap (width: int) (numbers: int list) =
-    numbers
-    |> List.chunkBySize width
-    |> List.iter (printfn "%A")
+let score2 =
+    regions
+    |> List.map regionScore2
+    |> List.sum
 
-print2DMap 4 ccMap
-//printfn $"{cornerCount map (1,0)}"
+printfn $"{score2}"
+
