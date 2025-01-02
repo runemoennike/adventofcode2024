@@ -186,7 +186,7 @@ ABBAAA
 AAAAAA
 """
 
-let input = testInput1
+let input = myInput
 
 type Direction = | N | NE | E | SE | S | SW | W | NW
 let cardinalDirections = [N; S; W; E]
@@ -280,8 +280,9 @@ let generateCorners (region:Region): Position list =
     region
     |> List.collect(fun pos ->
         let hasNeighbour = hasNeighbourIn region pos
-        let hasNeighbours dirs = dirs |> List.forall hasNeighbour
         let noNeighbour = hasNeighbour >> not
+        
+        let hasNeighbours dirs = dirs |> List.forall hasNeighbour
         let noNeighbours dirs = dirs |> List.forall noNeighbour
 
         //  o
@@ -313,18 +314,16 @@ let generateCorners (region:Region): Position list =
         @ if hasNeighbours [E; S] && noNeighbour SE then [add pos (1, 1)] else []
         @ if hasNeighbours [S; W] && noNeighbour SW then [add pos (0, 1)] else []
     )
-    |> List.distinct
 
 let regionScore2 (region: Region) =
     (region.Length) * (region |> generateCorners |> List.length)
 
-
-[0..regions.Length - 1]
-|> List.iter (fun i ->
-    printfn ""
-    printfn $"%A{regions[i]}"
-    printfn $"%A{generateCorners regions[i]}"
-)
+//[0..regions.Length - 1]
+//|> List.iter (fun i ->
+//    printfn ""
+//    printfn $"%A{regions[i]}"
+//    printfn $"%A{generateCorners regions[i]}"
+//)
 
 let score2 =
     regions
