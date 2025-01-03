@@ -1319,7 +1319,7 @@ Button B: X+27, Y+71
 Prize: X=10000000018641, Y=10000000010279
 """
 
-let input = testInput
+let input = myInput
 
 let maxPresses = 100L
 let aCost = 3L
@@ -1343,7 +1343,7 @@ type Game =
 
 let (|ButtonMovement|) (button: string) (input: string) : Movement = 
     match Regex(@"Button " + button.ToUpper() + ": X(\+\d+), Y(\+\d+)").Match(input) with
-    | m when m.Success -> (int m.Groups[1].Value, int m.Groups[2].Value)
+    | m when m.Success -> (int64 m.Groups[1].Value, int64 m.Groups[2].Value)
     | _ -> failwith ("No match for button " + button.ToUpper() + " in input.")
 
 let (|PrizePosition|) (input: string) : Position = 
@@ -1361,6 +1361,9 @@ let parse (input: string): Game list =
             Prize = match gameStr with | PrizePosition p -> p
         }
     )
+
+
+// Part 1
 
 let solutionsSeq (game:Game): int64 seq = seq {
     for (a: int64) in 0L..maxPresses do
@@ -1386,3 +1389,33 @@ let totalCost = solutions |> List.sum
 //printfn $"%A{games}"
 //printfn $"%A{solutions}"
 printfn $"%A{totalCost}"
+
+
+// Part 2
+
+let solve (g:Game): int64 option = 
+    let det = g.adx * g.bdy - g.ady * g.bdx
+    let aNum = g.bdy * g.px - g.bdx * g.py
+    let bNum = g.adx * g.py - g.ady * g.px
+
+    if aNum % det = 0 && bNum % det = 0 then
+        Some (aNum / det * aCost + bNum / det * bCost)
+    else
+        None
+
+let correction = 10000000000000L
+let correctedGames =
+    games
+    |> List.map (fun g ->
+        {g with Prize = (fst g.Prize + correction, snd g.Prize + correction)}
+    )
+
+let totalCost2 = 
+    correctedGames
+    |> List.map solve
+    |> List.filter _.IsSome
+    |> List.map _.Value
+    |> List.sum
+
+printfn $"{totalCost2}"
+
